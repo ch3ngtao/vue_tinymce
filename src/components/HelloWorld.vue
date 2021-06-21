@@ -18,6 +18,7 @@ import "tinymce/plugins/lists";
 import "tinymce/plugins/wordcount";
 import "tinymce/icons/default";
 import "tinymce/plugins/indent2em";
+import 'tinymce/plugins/media';
 export default {
   components: {
     Editor
@@ -34,7 +35,7 @@ export default {
     plugins: {
       type: [String, Array],
       default:
-        "link lists image code table wordcount indent2em"
+        "link lists image code table wordcount indent2em media"
     },
     toolbar: {
       type: [String, Array],
@@ -45,6 +46,7 @@ export default {
   data() {
     return {
       public: process.env.BASE_URL,
+      uploaded: false, //是否上传完成
       init: {
         language_url: process.env.BASE_URL + "tinymec/langs/zh_CN.js", //如果语言包不存在，指定一个语言包路径
         language: "zh_CN", //语言
@@ -60,7 +62,28 @@ export default {
         zIndex: 1101,
         images_upload_handler: (blobInfo, success, failure) => {
          this.upImg(blobInfo, success, failure)
-        }
+        },
+        file_picker_types: "media",
+        file_picker_callback: (callback, value, meta) => {
+          if(meta.filetype == 'media'){  
+            let input = document.createElement('input');//创建一个隐藏的input
+            input.setAttribute('type', 'file');
+            let that = this;
+            input.onchange = function(){
+              let file = this.files[0];//选取第一个文件
+              that.upMedia(that.qiniuToken, file, 'video'); // 上传视频拿到url
+              if(that.uploaded){
+                callback(that.resVideo, { title: file.name }) //将url显示在弹框输入框中
+              }else{
+                setTimeout(()=>{
+                  callback(that.resVideo, { title: file.name })
+                },2000)
+              }
+            }
+            //触发点击
+            input.click();
+          }
+        },
       },
       myValue: this.value
     };
@@ -79,14 +102,16 @@ export default {
       formData.append("type", 2);
       axios({
         method: "post",
-        url: "http://192.168.12.138:8800/admin/upload/upload",
+        url: "/admin/upload/upload",
         data: formData,
-        headers: {token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoie1wiaWRcIjoxLFwidXNlcm5hbWVcIjpcImFkbWluXCIsXCJuaWNrbmFtZVwiOlwiY2RzZndlXCIsXCJyZWFsbmFtZVwiOlwiXFx1OTE5MlxcdTkxOTJkZGRhXCIsXCJhdmF0YXJcIjpcIlxcXC8yMDIxMDZcXFwvMDNcXFwvOWRkYmM2Zjg4MjQwNjc1ZTE0YmQyM2YzYzU2ZTViY2QucG5nXCIsXCJnZW5kZXJcIjoyLFwiZ3JvdXBfaWRcIjoxLFwic3RhdHVzXCI6MSxcImxhc3RfbG9naW5fdGltZVwiOlwiMjAyMS0wNi0wMyAxNTozMDoxNFwiLFwibGFzdF9sb2dpbl9pcFwiOlwiMTcxLjIxNC4xODkuOTFcIn0ifQ.47GULp_I-5OUx_we-IGNloX0T7IZXDuasJXFWL5ZUo0"}
       }).then(res => {
         console.log(res.data);
         success(res.data.data.rel_path);
         console.log(failure);
       })
+    },
+    upMedia(callback, value, meta) {
+      console.log(callback, value, meta);
     }
   },
   watch: {
